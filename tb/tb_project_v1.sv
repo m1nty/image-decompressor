@@ -73,6 +73,7 @@ module TB;
 
 	// some bookkeeping variables
 	integer validation_file;
+	integer comparison_enabled;
 	logic [7:0] VGA_file_data;
 	int number_of_mismatches;
 
@@ -136,6 +137,7 @@ module TB;
 		SRAM_resetn = 1'b1;
 		RAM_filled = 1'b0;
 		number_of_mismatches = 0;
+		comparison_enabled = 0;
 		repeat (2) @(negedge clock_50);
 		$display("\n*** Asserting the asynchronous reset ***");
 		switch[17] = 1'b1;
@@ -232,6 +234,7 @@ module TB;
 			if ((temp & 8'hFF) == 8'h0A) new_line_count++;		
 			if (new_line_count < 3) temp = $fgetc(validation_file);
 		end
+		comparison_enabled = 1;
 	end
 	endtask
 
@@ -266,7 +269,7 @@ module TB;
 		end else begin
 			VGA_en <= ~VGA_en;
 			// In 640x480 @ 60 Hz mode, data is provided at every other clock cycle when using 50 MHz clock
-			if (VGA_en) begin
+			if (VGA_en && comparison_enabled) begin
 				if (UUT.VGA_enable) begin
 					// Delay pixel_X_pos and pixel_Y_pos to match the VGA controller
 					VGA_row <= UUT.VGA_unit.pixel_Y_pos;
@@ -307,14 +310,14 @@ module TB;
 
 						end		
 
-						/*
+						
 						// this code section should be uncommented to stop the simulation
 						// at a pre-defined number of mismatches
 						if (number_of_mismatches > `MAX_MISMATCHES) begin
 							$write("Stopped due to %d mismatches!!!\n", number_of_mismatches);
 							$stop;
 						end
-						*/
+						
 
 					end
 				end 
