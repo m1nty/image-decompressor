@@ -36,8 +36,12 @@ add wave -hex UUT/Milestone_2_unit/RAM_A_write_0
 add wave -hex UUT/Milestone_2_unit/RAM_A_write_1
 add wave -hex UUT/Milestone_2_unit/RAM_B_write_0
 add wave -hex UUT/Milestone_2_unit/RAM_B_write_1
-add wave -hex UUT/Milestone_2_unit/RAM_C_write_0
-add wave -hex UUT/Milestone_2_unit/RAM_C_write_1
+add wave -hex UUT/Milestone_2_unit/RAM_C_read_0
+add wave -hex UUT/Milestone_2_unit/RAM_C_read_1
+add wave -hex UUT/Milestone_2_unit/RAM_C_address_0
+add wave -hex UUT/Milestone_2_unit/RAM_C_address_1
+add wave -hex UUT/Milestone_2_unit/matrix_mult_col_offset
+add wave -hex UUT/Milestone_2_unit/C_read_address
 add wave -hex UUT/Milestone_2_unit/S_prime_buffer
 add wave -hex UUT/Milestone_2_unit/matrix_mult_buffer
 add wave -divider -height 10 {VGA signals}

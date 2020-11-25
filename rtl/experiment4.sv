@@ -224,10 +224,10 @@ always @(posedge CLOCK_50_I or negedge resetn) begin
 			VGA_enable <= 1'b1;  
 			if (~UART_RX_I) begin
 				// Start bit on the UART line is detected
-				UART_rx_initialize <= 1'b1;
-				UART_timer <= 26'd0;
-				VGA_enable <= 1'b0;
-				top_state <= S_UART_RX;
+				// UART_rx_initialize <= 1'b1;
+				// UART_timer <= 26'd0;
+				// VGA_enable <= 1'b0;
+				top_state <= S_MILESTONE_2;
 			end
 		end
 

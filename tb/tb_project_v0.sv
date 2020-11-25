@@ -38,10 +38,10 @@ you will get false errors, so use the original testbench instead.
 `define VERIFICATION_FILE_NAME "../data/motorcycle.sram_d0"
 
 // input file for milestone 1
-`define INPUT_FILE_NAME "../data/motorcycle.sram_d1"
+// `define INPUT_FILE_NAME "../data/motorcycle.sram_d1"
 
 // input file for milestone 2
-//`define INPUT_FILE_NAME "../data/motorcycle.sram_d2"
+`define INPUT_FILE_NAME "../data/motorcycle.sram_d2"
 
 // input file for milestone 3 (full project)
 //`define INPUT_FILE_NAME "../data/motorcycle.mic14”
@@ -188,7 +188,7 @@ module TB;
 		error_count = 0;
 		//NOTE: this is for milestone 1, in different milestones we will be
 		//writing to different regions so modify as needed
-		for (i=146944; i<262144; i=i+1) begin
+		for (i=0; i<76800; i=i+1) begin
 			if (SRAM_ARRAY_write_count[i]==0) begin
 				if (error_count < `MAX_MISMATCHES) begin
 					$write("error: did not write to location %d (%x hex)\n", i, i);
@@ -277,7 +277,7 @@ module TB;
 		if (UUT.SRAM_we_n == 1'b0) begin //signal names within project (instantiated as uut) should match here, assuming names from experiment4a
 	
 			//IMPORTANT: this is the "no write" memory region for milestone 1, change region for different milestones
-			if (UUT.SRAM_address < 146944) begin
+			if (UUT.SRAM_address < 146944 && UUT.SRAM_address > 76800) begin
 				if (warn_writing_out_of_region < `MAX_MISMATCHES) begin
 					$write("critical warning: writing outside of the RGB data region, may corrupt source data in SRAM\n");
 					$write("  writing value %d (%x hex) to location %d (%x hex), sim time %t\n", 
