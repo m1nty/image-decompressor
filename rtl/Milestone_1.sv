@@ -101,7 +101,8 @@ enum logic [4:0] {
 	S_COMMONCASE_5,
 	S_COMMONCASE_6,
 	S_LEAD_O_1,
-	S_LEAD_O_2
+	S_LEAD_O_2,
+	S_DELAY
 } state;
 
 //Multiplier 1
@@ -762,10 +763,13 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 		if(RGB_address < 18'd262143)
 			state <= S_LEAD_I_1;
 		else begin
-			state <= S_IDLE;
+			state <= S_DELAY;
 			Milestone_1_finished <= 1'b1;
 		end
 			
+	end
+	S_DELAY: begin
+		state <= S_IDLE;
 	end
 	
 	default: state <= S_IDLE;
