@@ -14,3 +14,13 @@ Trace back: Bad sequence in.main_pane.memory.interior.cs.body.tree.lwchildsite.c
     ("after" script)
   <2:C:/intelFPGA/19.1/modelsim_ase/win32aloem/tk8.5/bgerror.tcl:92: ::tkerror {Bad sequence in.main_pane.memory.interior.cs.body.tree.lwchildsite.clipper.canvas.sfchildsite.tree, aborting query. (2)}
   <1:eval:1: ::tk::dialog::error::bgerror {Bad sequence in.main_pane.memory.interior.cs.body.tree.lwchildsite.clipper.canvas.sfchildsite.tree, aborting query. (2)}
+Thu Nov 26 23:10:21 EST 2020
+Trace back: invalid command name ".main_pane.wave.interior.cs.body.pw.wf.grid.row0,wave.data"
+    while executing
+"$widget index @$x,$y"
+    (procedure "WaveABar::mouseMotionUpdate" line 19)
+    invoked from within
+"WaveABar::mouseMotionUpdate .main_pane.wave.interior.cs.body.pw.wf.grid.row0,wave.data .main_pane.wave.interior.cs.body.pw.wf 491 275"
+    ("after" script)
+  <2:C:/intelFPGA/19.1/modelsim_ase/win32aloem/tk8.5/bgerror.tcl:92: ::tkerror {invalid command name ".main_pane.wave.interior.cs.body.pw.wf.grid.row0,wave.data"}
+  <1:proc:24: ::tk::dialog::error::bgerror {invalid command name ".main_pane.wave.interior.cs.body.pw.wf.grid.row0,wave.data"}

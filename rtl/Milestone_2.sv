@@ -105,6 +105,10 @@ logic [31:0] MAC_shifted;
 //Holds clipped value to be stored as half of one 16 bit location in segment
 logic [7:0] MAC_clipped;
 
+logic S_prime_alternate_block;
+
+logic Ct_row_transition;
+
 //States
 enum logic [4:0] {
 	S_IDLE,
@@ -174,6 +178,12 @@ logic [6:0] RAM_C_address_0, RAM_C_address_1;
 logic [31:0] RAM_C_read_0, RAM_C_read_1;
 logic [31:0] RAM_C_write_0, RAM_C_write_1;
 
+logic [6:0] S_prime_alternating_read_offset;
+logic [6:0] S_prime_alternating_write_offset;
+
+//Testing
+logic flag;
+
 //Instantiation of RAM_A
 dual_port_RAM_A RAM_A_unit (
 	.address_a (RAM_A_address_0),
@@ -216,6 +226,10 @@ dual_port_RAM_C RAM_C_unit (
 //MAC assigned summation of previous partial product and current
 assign MAC = matrix_mult_buffer + mult_1_result + mult_2_result + mult_3_result + mult_4_result,
        MAC_shifted = stage1_matrix_mult ? $signed(MAC) >>> 8 : (stage2_matrix_mult ? $signed(MAC) >>> 16 : $signed(MAC));
+
+assign S_prime_alternating_read_offset = S_prime_alternate_block ? 7'd32 : 7'd0;
+
+assign S_prime_alternating_write_offset = S_prime_alternate_block ? 7'd0 : 7'd32;
 
 //Multiplier Operand Assignment based on matrix multiplication stage
 always_comb begin
@@ -265,7 +279,7 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 		Milestone_2_finished <= 1'b0;
 		state <= S_IDLE;
 
-		SRAM_we_n <= 1'b0;
+		SRAM_we_n <= 1'b1;
 		SRAM_address_O <= 18'd0;
 		SRAM_write_data <= 16'd0;
 
@@ -320,6 +334,12 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 		read_UV_blocks <= 1'b0;
 		YUV_write_en <= 1'b0;
 
+	S_prime_alternate_block <= 1'b0;
+
+	flag <= 1'b0;
+
+	Ct_row_transition <= 1'b0;
+
 	
 	end else begin
 	
@@ -333,10 +353,10 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 	
 //Lead In SRAM Reads
 	S_SRAM_READS_0:begin
-		SRAM_address_O <= (read_Y_blocks ? Pre_IDCT_Y_offset : Pre_IDCT_U_offset) + SRAM_read_col_offset;
-
 		//Enable Read
 		SRAM_we_n <= 1'b1;
+		SRAM_address_O <= (read_Y_blocks ? Pre_IDCT_Y_offset : Pre_IDCT_U_offset) + SRAM_read_col_offset;
+
 		SRAM_read_col_offset <= SRAM_read_col_offset + 1'd1;
 
 		state <= SRAM_read_col_offset == 4'd2 ? S_SRAM_READS_1 : S_SRAM_READS_0;
@@ -386,7 +406,7 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 		//Adjusting address for SRAM writes to RAM
 		{RAM_A_address_0, RAM_B_address_0} <= {2{S_prime_write_address}};
 		//Concatanate the 2 values at one location
-		{RAM_A_write_0, RAM_B_write_0} <= {2{S_prime_buffer, SRAM_read_data}};
+		{RAM_A_write_0, RAM_B_write_0} <= {2{SRAM_read_data, S_prime_buffer}};
 		//Increment address and offset
         S_prime_write_address <= S_prime_write_address + 1'd1;
 		SRAM_read_col_offset <= SRAM_read_col_offset + 1'd1;
@@ -399,6 +419,8 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 	
 //Lead in T computation State 0
 	S_T_MULT_0: begin
+
+		{RAM_A_write_en_0, RAM_B_write_en_0} <= {2{1'b0}};
 		SRAM_we_n <= 1'b1;
         SRAM_address_O <= SRAM_read_block_hor_offset + SRAM_read_block_ver_offset + (read_Y_blocks ? Pre_IDCT_Y_offset : Pre_IDCT_U_offset);
 		SRAM_read_col_offset <= 4'd1;
@@ -406,22 +428,18 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 
 		//First Matrix Multiplication Setup
 		block_read_complete <= 1'b0;
-		stage1_matrix_mult <= 1'b1;
 		SC_write_address <= 7'd64;
-        matrix_mult_col_offset <= 7'd0;	
-		S_prime_write_address <= 7'd1;
-
 		state <= S_T_MULT_1;
 	end
 
 //Lead in T computation State 1
 	S_T_MULT_1: begin
 
-		SRAM_address_O <= SRAM_read_block_hor_offset + SRAM_read_block_ver_offset + SRAM_read_col_offset + SRAM_read_row_offset + (read_Y_blocks ? Pre_IDCT_Y_offset : Pre_IDCT_U_offset);
 		//Setting up to read S values from RAM A and B
 		{RAM_A_write_en_0, RAM_B_write_en_0} <= {2{1'b0}};
-		RAM_A_address_0 <= 7'd0;
-		RAM_B_address_0 <= 7'd1;
+		RAM_A_address_0 <= S_prime_alternate_block ? 7'd32 : 7'd0;
+		RAM_B_address_0 <= S_prime_alternate_block ? 7'd33 : 7'd1;
+		S_prime_read_address <= 7'd2 + S_prime_alternating_read_offset;
 
 		//Setting up to read C values from Port C
 		{RAM_C_write_en_0, RAM_C_write_en_1} <= {2{1'b0}};
@@ -429,15 +447,15 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 		RAM_C_address_1 <= 7'd1;
 
 		C_read_address <= 7'd2;
-        S_prime_read_address <= 7'd2;
-
-		SRAM_read_col_offset <= SRAM_read_col_offset + 1'd1;
-
+		matrix_mult_col_offset <= 7'd0;	
+		S_prime_write_address <=  S_prime_alternating_write_offset;
 		state <= S_T_MULT_2;
 	end
 
 //Lead in T computation State 2
 	S_T_MULT_2: begin
+
+		SRAM_address_O <= SRAM_read_block_hor_offset + SRAM_read_block_ver_offset + SRAM_read_col_offset + SRAM_read_row_offset + (read_Y_blocks ? Pre_IDCT_Y_offset : Pre_IDCT_U_offset);
 		//Setting up to read S values from RAM A and B
 		RAM_A_address_0 <= S_prime_read_address;
 		RAM_B_address_0 <= S_prime_read_address + 1'd1;
@@ -447,6 +465,10 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 		RAM_C_address_0 <= C_read_address;
 		RAM_C_address_1 <= C_read_address + 1'd1;
 		C_read_address <= 7'd0;
+
+		stage1_matrix_mult <= 1'b1;
+
+		SRAM_read_col_offset <= SRAM_read_col_offset + 1'd1;
 
 		state <= S_T_MULT_3;
 	end
@@ -461,27 +483,20 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 		RAM_C_address_0 <= matrix_mult_col_offset;
 		RAM_C_address_1 <= matrix_mult_col_offset + 1'd1;
 		C_read_address <= matrix_mult_col_offset + 2'd2;
+		S_prime_read_address <= S_prime_read_address + 7'd2;
 
-		//If true, end of S_prime Values, so we reset back to 0. Otherwise increment. 
-		if (S_prime_read_address == 7'd31) begin
-			S_prime_read_address <= 7'd0;
-			matrix_mult_col_offset <= matrix_mult_col_offset + 7'd4;
-		end else begin
-			S_prime_read_address <= S_prime_read_address + 7'd2;
-		end
-
-
-		if (~block_read_complete) begin
+		if (~block_read_complete || ((S_prime_write_address == 7'd63 & ~S_prime_alternate_block) | (S_prime_write_address == 7'd31 & S_prime_alternate_block))) begin
 			if(write_next_block) begin
 				//Write SRAM to RAM
-				{RAM_A_write_en_0, RAM_B_write_en_0} <= {2{1'b1}};
+				{RAM_A_write_en_1, RAM_B_write_en_1} <= {2{1'b1}};
 				//Adjusting address for SRAM writes to RAM
-				{RAM_A_address_0, RAM_B_address_0} <= {2{S_prime_write_address}};
+				{RAM_A_address_1, RAM_B_address_1} <= {2{S_prime_write_address}};
 				//Concatanate the 2 values at one location
-				{RAM_A_write_0, RAM_B_write_0} <= {2{S_prime_buffer, SRAM_read_data}};
-				//Increment address and offset
-				S_prime_write_address <= S_prime_write_address + 1'd1;
+				{RAM_A_write_1, RAM_B_write_1} <= {2{SRAM_read_data, S_prime_buffer}};
 
+				S_prime_write_address <= S_prime_write_address + (SC_write_address == 7'd64 ? 7'd0 : 7'd1);
+				
+				write_next_block <= ~write_next_block;
 			end else begin
 				write_next_block <= ~write_next_block;
 				{RAM_A_write_en_0, RAM_B_write_en_0} <= {2{1'b0}};
@@ -490,13 +505,10 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 
 			if (SRAM_read_col_offset == 4'd0 && SRAM_read_row_offset == 12'd0) begin
 				block_read_complete <= 1'b1;
-			end else begin
-				SRAM_read_col_offset <= SRAM_read_col_offset + 1'd1;
-				S_prime_write_address <= S_prime_write_address + 1'd1;
 			end
+			
 		end
 	
-
 		//Buffer first 4 partial products of matrix multiplication
 		matrix_mult_buffer <= mult_1_result + mult_2_result + mult_3_result + mult_4_result;
 		state <= S_T_MULT_4;
@@ -505,13 +517,21 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 
 //Second State of General Case for T Computation
 	S_T_MULT_4: begin
+
+		//If true, end of S_prime Values, so we reset back to 0. Otherwise increment. 
+		if ((S_prime_read_address == 7'd30 & ~S_prime_alternate_block) | (S_prime_read_address == 7'd62 & S_prime_alternate_block)) begin
+			flag <= 1'b1;
+			S_prime_read_address <= S_prime_alternating_read_offset;
+			matrix_mult_col_offset <= matrix_mult_col_offset + 7'd4;
+		end else begin
+			S_prime_read_address <= S_prime_read_address + 7'd2;
+		end
 		//Enable RAM Reads
 		{RAM_A_write_en_0, RAM_B_write_en_0} <= {2{1'b0}};
 
 		//S and C Value addressing for RAM's
 		RAM_A_address_0 <= S_prime_read_address;
 		RAM_B_address_0 <= S_prime_read_address + 1'd1;
-		S_prime_read_address <= S_prime_read_address + 2'd2;
 		
 		RAM_C_address_0 <= C_read_address;
 		RAM_C_address_1 <= C_read_address + 1'd1;
@@ -562,6 +582,8 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 //Lead in S computation State 1
 	S_S_MULT_0: begin
 		stage1_matrix_mult <= 1'b0;
+		stage2_matrix_mult <= 1'b1;
+
 		YUV_write_en <= 1'b0;
 
 		//Read enables for T values
@@ -576,11 +598,11 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 		//Read enables for Ct values
 		{RAM_C_write_en_0, RAM_C_write_en_1} = {2{1'b0}};
 		//Read addresses for Ct values
-		RAM_C_address_0 <= 7'd0;
-		RAM_C_address_1 <= 7'd1;
+		RAM_C_address_0 <= 7'd32;
+		RAM_C_address_1 <= 7'd33;
 
 		SC_read_address <= 7'd68;
-		Ct_read_address <= 7'd2;
+		Ct_read_address <= 7'd34;
 
 		state <= S_S_MULT_1;
 	end
@@ -601,8 +623,6 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 		SC_read_address <= SC_read_address + 3'd4;
 		Ct_read_address <= Ct_read_address + 1'd1;
 
-		stage2_matrix_mult <= 1'b1;
-
 		state <= S_S_MULT_2;
 	end
 
@@ -610,28 +630,31 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 	S_S_MULT_2:begin
 		SRAM_we_n <= 1'b1;
 
-		//Read addresses for T values
+		if (Ct_row_transition) begin
+			matrix_mult_col_offset <= matrix_mult_col_offset + 6'd4;
+			Ct_read_address <= Ct_read_address + 2'd3;
+			RAM_C_address_0 <= Ct_read_address + 1'd1;
+			RAM_C_address_1 <= Ct_read_address + 2'd2;
+			SC_read_address <= SC_read_address + 3'd4;
+		end else begin
+			flag <= 1'b0;
+			SC_read_address <= SC_read_address + 3'd4;
+			Ct_read_address <= matrix_mult_col_offset + 2'd2;
+			RAM_C_address_0 <= matrix_mult_col_offset;
+			RAM_C_address_1 <= matrix_mult_col_offset + 1'd1;
+		end
+
 		RAM_A_address_0 <= SC_read_address;
 		RAM_A_address_1 <= SC_read_address + 1'd1;
 		RAM_B_address_0 <= SC_read_address + 2'd2;
 		RAM_B_address_1 <= SC_read_address + 2'd3;
 
-		//Read addresses for Ct values
-		RAM_C_address_0 <= matrix_mult_col_offset;
-		RAM_C_address_1 <= matrix_mult_col_offset + 1'd1;
-
-		//Increment read addresses
-		Ct_read_address <= matrix_mult_col_offset + 2'd2;
-
-		if (SC_read_address == 7'd126) begin
-			SC_read_address <= 7'd64;
-			matrix_mult_col_offset <= matrix_mult_col_offset + 6'd4;
-		end else begin
+		if (Ct_row_transition) begin
 			SC_read_address <= SC_read_address + 3'd4;
 		end
 
 		//Buffering result of current multiplications
-        matrix_mult_buffer <= mult_1_result + mult_2_result; 
+        matrix_mult_buffer <= mult_1_result + mult_2_result + mult_3_result + mult_4_result; 
 
 		if (YUV_write_en && ((read_Y_blocks && SRAM_write_col_offset + SRAM_write_row_offset == 12'd1123) || (read_UV_blocks && SRAM_write_col_offset + SRAM_write_row_offset == 12'd563))) begin
 			block_write_complete <= 1'b1;
@@ -642,6 +665,7 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 
 //S Computation General Case State 2
 	S_S_MULT_3: begin
+
 		YUV_write_en <= ~YUV_write_en;
 
 		if (YUV_write_en) begin
@@ -677,19 +701,25 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 			clipped_buffer <= MAC_clipped;
 		end
 
+		if(SC_read_address == 7'd124) begin
+			flag <= 1'b1;
+			Ct_row_transition <= 1'b1;
+		end else begin
+			Ct_row_transition <= 1'b0;
+
+		end
 
 		//Read addresses for T values
 		RAM_A_address_0 <= SC_read_address;
 		RAM_A_address_1 <= SC_read_address + 1'd1;
 		RAM_B_address_0 <= SC_read_address + 2'd2;
 		RAM_B_address_1 <= SC_read_address + 2'd3;
+		//Increment read addresses
+		SC_read_address <= SC_read_address == 7'd124 ? 7'd64 : SC_read_address + 7'd4;
 
 		//Read addresses for Ct values
 		RAM_C_address_0 <= Ct_read_address;
 		RAM_C_address_1 <= Ct_read_address + 1'd1;
-
-		//Increment read addresses
-		SC_read_address <= SC_read_address + 3'd4;
 		Ct_read_address <= Ct_read_address + 1'd1;
 
 		state <= block_write_complete ? S_RESET : S_S_MULT_2;
@@ -702,6 +732,8 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 		YUV_write_en <= 1'b0;
 		block_read_complete <= 1'b0;
 		block_write_complete <= 1'b0;
+
+		S_prime_alternate_block <= ~S_prime_alternate_block;
 		
 		//Milestone complete flag
 		if (SRAM_address_O == 18'd76799) begin 
@@ -713,15 +745,60 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 			read_Y_blocks <= 1'b0;
 			read_UV_blocks <= 1'b1;
 			
-			//Resetting to 0 for IDCT transform of U & V
-			SRAM_read_block_hor_offset <= 9'd0; 
+			SRAM_we_n <= 1'b1;
+			SRAM_address_O <= 18'd0;
+			SRAM_write_data <= 16'd0;
+
+			//RAM_A
+			{RAM_A_write_en_0, RAM_A_write_en_1} <= {2{1'd0}};
+			{RAM_A_address_0, RAM_A_address_1} <= {2{7'd0}};
+			{RAM_A_write_0, RAM_A_write_1} <= {2{32'd0}};
+
+			//RAM_B
+			{RAM_B_write_en_0, RAM_B_write_en_1} <= {2{1'd0}};
+			{RAM_B_address_0, RAM_B_address_1} <= {2{7'd0}};
+			{RAM_B_write_0, RAM_B_write_1} <= {2{32'd0}};
+
+			//RAM_C
+			{RAM_C_write_en_0, RAM_C_write_en_1} <= {2{1'd0}};
+			{RAM_C_address_0, RAM_C_address_1} <= {2{7'd0}};
+			{RAM_C_write_0, RAM_C_write_1} <= {2{32'd0}};
+
+			//Offsets for Address Reads and Writes
+			SRAM_read_col_offset <= 4'd0;
+			SRAM_read_row_offset <= 12'd0;
+			SRAM_write_col_offset <= 4'd0;
+			SRAM_write_row_offset <= 12'd0;
+
+			SRAM_read_block_hor_offset <= 9'd0;
 			SRAM_read_block_ver_offset <= 18'd0;
-			
 			SRAM_write_block_hor_offset <= 9'd0;
 			SRAM_write_block_ver_offset <= 18'd0;
+
+			//Tracking for S, SC, C, and Ct Read & Writes
+			{S_prime_write_address, S_prime_read_address} <= {2{7'd0}};
+			{SC_write_address, SC_read_address} <= {2{7'd64}};
+			{C_read_address, Ct_read_address} <= {2{7'd0}};
 			
-			S_prime_write_address <= 7'd0;
-			
+			//Offset to track column between partial products
+			matrix_mult_col_offset <= 7'd0;
+
+			//Buffers
+			S_prime_buffer <= 16'd0;
+			matrix_mult_buffer <= 32'd0;
+			clipped_buffer <= 8'd0;
+
+			//Matrix Multiplication Stage Trackers
+			stage1_matrix_mult <= 1'b0;
+			stage2_matrix_mult <= 1'b0;
+
+			//Control singnals and flags
+			{block_read_complete, block_write_complete, write_next_block} <= {2{1'b0}};
+
+			S_prime_alternate_block <= 1'b0;
+			Ct_row_transition <= 1'b0;
+
+						
 			state <= S_SRAM_READS_0;
 			
 		end else begin
