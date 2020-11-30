@@ -24,6 +24,7 @@
 !*.png
 !*.txt
 !*.pdf
+!*.xlsx
 
 # Hardware design/verification files
 !*.svh
