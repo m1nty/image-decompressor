@@ -271,7 +271,7 @@ always @(posedge CLOCK_50_I or negedge resetn) begin
 			//Tells Milestone 2 to begin
 			Milestone_2_start <= 1'b1;
 			
-			//Once Milestone 1 is finished, return to Milestone 1, so VGA can get control to the SRAM
+			//Once Milestone 2 is finished, return to Milestone 1
 			if(Milestone_2_finished == 1'b1) begin
 				top_state <= S_MILESTONE_1;
 				Milestone_2_start <= 1'b0;
