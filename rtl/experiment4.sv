@@ -78,6 +78,13 @@ logic [15:0] UART_SRAM_write_data;
 logic UART_SRAM_we_n;
 logic [25:0] UART_timer;
 
+//Declaring Hardware Components for Milestone 1
+logic Milestone_1_start;
+logic Milestone_1_finished;
+logic [17:0] M1_address;
+logic [15:0] M1_SRAM_write_data;
+logic M1_SRAM_we_n;
+
 logic [6:0] value_7_segment [7:0];
 
 // For error detection in UART
@@ -153,6 +160,48 @@ SRAM_controller SRAM_unit (
 	.SRAM_OE_N_O(SRAM_OE_N_O)
 );
 
+//Instantiation of Unit for Milestone 1
+Milestone_1 Milestone_1_unit(
+	.Clock_50(CLOCK_50_I),
+	.resetn(resetn),
+
+	.SRAM_read_data(SRAM_read_data),
+	.Milestone_1_start(Milestone_1_start),
+	
+	.SRAM_write_data(M1_SRAM_write_data),
+	.SRAM_we_n(M1_SRAM_we_n),
+	
+	//M1_address tracks the SRAM address changes from Milestone 1
+	.SRAM_address_O(M1_address),
+	
+	//Flag to track when Milestone 1 is finished
+	.Milestone_1_finished(Milestone_1_finished)
+);
+
+logic Milestone_2_start;
+logic Milestone_2_finished;
+logic [17:0] M2_address;
+logic [15:0] M2_SRAM_write_data;
+logic M2_SRAM_we_n;
+
+//Instantiation of Unit for Milestone 2
+Milestone_2 Milestone_2_unit(
+	.Clock_50(CLOCK_50_I),
+	.resetn(resetn),
+
+	.SRAM_read_data(SRAM_read_data),
+	.Milestone_2_start(Milestone_2_start),
+	
+	.SRAM_write_data(M2_SRAM_write_data),
+	.SRAM_we_n(M2_SRAM_we_n),
+	
+	//M2_address tracks the SRAM address changes from Milestone 2
+	.SRAM_address_O(M2_address),
+	
+	//Flag to track when Milestone 2 is finished
+	.Milestone_2_finished(Milestone_2_finished)
+);
+
 assign SRAM_ADDRESS_O[19:18] = 2'b00;
 
 always @(posedge CLOCK_50_I or negedge resetn) begin
@@ -175,10 +224,10 @@ always @(posedge CLOCK_50_I or negedge resetn) begin
 			VGA_enable <= 1'b1;  
 			if (~UART_RX_I) begin
 				// Start bit on the UART line is detected
-				UART_rx_initialize <= 1'b1;
-				UART_timer <= 26'd0;
-				VGA_enable <= 1'b0;
-				top_state <= S_UART_RX;
+				// UART_rx_initialize <= 1'b1;
+				// UART_timer <= 26'd0;
+				// VGA_enable <= 1'b0;
+				top_state <= S_MILESTONE_2;
 			end
 		end
 
@@ -198,11 +247,37 @@ always @(posedge CLOCK_50_I or negedge resetn) begin
 
 			// Timeout for 1 sec on UART (detect if file transmission is finished)
 			if (UART_timer == 26'd49999999) begin
-				top_state <= S_IDLE;
+				top_state <= S_MILESTONE_2;
 				UART_timer <= 26'd0;
 			end
 		end
+		
+		
+		//Milestone 1 State
+		S_MILESTONE_1: begin
+			
+			//Tells Milestone 1 to begin
+			Milestone_1_start <= 1'b1;
+			
+			//Once Milestone 1 is finished, return to IDLE, so VGA can get control to the SRAM
+			if(Milestone_1_finished == 1'b1) begin
+				top_state <= S_IDLE;
+				Milestone_1_start <= 1'b0;
+			end
+		end
 
+		S_MILESTONE_2: begin
+			
+			//Tells Milestone 2 to begin
+			Milestone_2_start <= 1'b1;
+			
+			//Once Milestone 2 is finished, return to Milestone 1
+			if(Milestone_2_finished == 1'b1) begin
+				top_state <= S_MILESTONE_1;
+				Milestone_2_start <= 1'b0;
+			end
+		end
+		
 		default: top_state <= S_IDLE;
 
 		endcase
@@ -212,14 +287,46 @@ end
 // for this design we assume that the RGB data starts at location 0 in the external SRAM
 // if the memory layout is different, this value should be adjusted 
 // to match the starting address of the raw RGB data segment
-assign VGA_base_address = 18'd0;
+assign VGA_base_address = 18'd146944;
 
-// Give access to SRAM for UART and VGA at appropriate time
-assign SRAM_address = (top_state == S_UART_RX) ? UART_SRAM_address : VGA_SRAM_address;
+// Give access to SRAM for UART, VGA and Milestone 1 at appropriate time
+always_comb begin
 
-assign SRAM_write_data = (top_state == S_UART_RX) ? UART_SRAM_write_data : 16'd0;
+	case(top_state) 
+	S_IDLE: begin
+		
+		SRAM_address = VGA_SRAM_address;
+		SRAM_write_data = 16'd0;
+		SRAM_we_n = 1'b1;
+		
+	end
+	S_UART_RX: begin
+	
+		SRAM_address = UART_SRAM_address;
+		SRAM_write_data = UART_SRAM_write_data;
+		SRAM_we_n = UART_SRAM_we_n;
+	end	
+	
+	//SRAM Control for Milestone 1
+	S_MILESTONE_1: begin
+		
+		SRAM_address = M1_address;
+		SRAM_write_data = M1_SRAM_write_data;
+		SRAM_we_n = M1_SRAM_we_n;
+	end
 
-assign SRAM_we_n = (top_state == S_UART_RX) ? UART_SRAM_we_n : 1'b1;
+	//SRAM Control for Milestone 2
+	S_MILESTONE_2: begin
+		
+		SRAM_address = M2_address;
+		SRAM_write_data = M2_SRAM_write_data;
+		SRAM_we_n = M2_SRAM_we_n;
+
+	end
+		
+	endcase
+	
+end
 
 // 7 segment displays
 convert_hex_to_seven_segment unit7 (

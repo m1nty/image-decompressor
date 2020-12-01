@@ -1,0 +1,91 @@
+-- Copyright (C) 2019  Intel Corporation. All rights reserved.
+-- Your use of Intel Corporation's design tools, logic functions 
+-- and other software and tools, and any partner logic 
+-- functions, and any output files from any of the foregoing 
+-- (including device programming or simulation files), and any 
+-- associated documentation or information are expressly subject 
+-- to the terms and conditions of the Intel Program License 
+-- Subscription Agreement, the Intel Quartus Prime License Agreement,
+-- the Intel FPGA IP License Agreement, or other applicable license
+-- agreement, including, without limitation, that your use is for
+-- the sole purpose of programming logic devices manufactured by
+-- Intel and sold by Intel or its authorized distributors.  Please
+-- refer to the applicable agreement for further details, at
+-- https://fpgasoftware.intel.com/eula.
+
+-- Quartus Prime generated Memory Initialization File (.mif)
+
+WIDTH=32;
+DEPTH=128;
+
+ADDRESS_RADIX=UNS;
+DATA_RADIX=HEX;
+
+CONTENT BEGIN
+	0 : 07D805A8;
+	1 : 06A60764;
+	2 : 047105A8;
+	3 : 018F030F;
+	4 : 06A605A8;
+	5 : FE71030F;
+	6 : F828FA58;
+	7 : FB8FF89C;
+	8 : 047105A8;
+	9 : F828FCF1;
+	10 : 018FFA58;
+	11 : 06A60764;
+	12 : 018F05A8;
+	13 : FB8FF89C;
+	14 : 06A605A8;
+	15 : F828FCF1;
+	16 : FE7105A8;
+	17 : 0471F89C;
+	18 : F95A05A8;
+	19 : 07D8FCF1;
+	20 : FB8F05A8;
+	21 : 07D8FCF1;
+	22 : FE71FA58;
+	23 : F95A0764;
+	24 : F95A05A8;
+	25 : 018F030F;
+	26 : 07D8FA58;
+	27 : 0471F89C;
+	28 : F82805A8;
+	29 : F95A0764;
+	30 : FB8F05A8;
+	31 : FE71030F;
+	
+	32 : 07D805A8;
+	33 : 06A60764;
+	34 : 047105A8;
+	35 : 018F030F;
+	36 : 06A605A8;
+	37 : FE71030F;
+	38 : F828FA58;
+	39 : FB8FF89C;
+	40 : 047105A8;
+	41 : F828FCF1;
+	42 : 018FFA58;
+	43 : 06A60764;
+	44 : 018F05A8;
+	45 : FB8FF89C;
+	46 : 06A605A8;
+	47 : F828FCF1;
+	48 : FE7105A8;
+	49 : 0471F89C;
+	50 : F95A05A8;
+	51 : 07D8FCF1;
+	52 : FB8F05A8;
+	53 : 07D8FCF1;
+	54 : FE71FA58;
+	55 : F95A0764;
+	56 : F95A05A8;
+	57 : 018F030F;
+	58 : 07D8FA58;
+	59 : 0471F89C;
+	60 : F82805A8;
+	61 : F95A0764;
+	62 : FB8F05A8;
+	63 : FE71030F;
+	[64..127] : 0;
+END;
