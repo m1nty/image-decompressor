@@ -32,6 +32,7 @@ add wave -divider -height 10 {VGA signals}
 # add wave -hex UUT/VGA_unit/VGA_blue
 
 add wave -hex UUT/Milestone_2_unit/state
+add wave -hex UUT/Milestone_1_unit/state
 add wave -hex UUT/Milestone_2_unit/UV_segment_reads
 
 add wave -divider -height 10 {Write Signals}

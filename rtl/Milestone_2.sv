@@ -131,7 +131,8 @@ enum logic [4:0] {
 	S_S_MULT_1,
 	S_S_MULT_2,
 	S_S_MULT_3,
-	S_RESET
+	S_RESET,
+	S_DELAY
 } state;
 
 //Instantiating 4 Multipliers from module
@@ -746,7 +747,7 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 		//Milestone complete flag
 		if (SRAM_address_O == 18'd76799) begin 
 			Milestone_2_finished <= 1'b1;
-			state <= S_IDLE;
+			state <= S_DELAY;
 		
 		//Y segment complete, must repeat for UV
 		end else if (SRAM_w_vertical_block_offset == 18'd38400) begin 
@@ -813,6 +814,12 @@ always_ff @(posedge Clock_50 or negedge resetn) begin
 			state <= S_T_MULT_0;
 		end
 
+	end
+	
+	S_DELAY: begin
+		UV_segment_reads <= 1'b0; //reset UV segment read flag
+		Y_segment_reads <= 1'b1; //resets Y segment read flag
+		state <= S_IDLE;
 	end
 	
 	default: state <= S_IDLE;
